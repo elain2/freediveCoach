@@ -121,7 +121,7 @@ export function ResultCard({ result, disciplineLabel, mode, onCopyMarkdown, onRe
               {/* 헤더 */}
               <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#2a4a6a]">
                 <div>
-                  <h2 className="text-xl font-bold text-[#00d4ff]">Descent</h2>
+                  <h2 className="text-xl font-bold text-[#00d4ff]">Diving Cat</h2>
                   <p className="text-xs text-[#8ba4b4] mt-1">프리다이빙 폼 코치</p>
                 </div>
                 <div className="text-right">

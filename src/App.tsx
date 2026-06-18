@@ -28,7 +28,7 @@ function App() {
       <header className="border-b border-[var(--descent-border)] py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-[var(--descent-accent)]">
-            Descent
+            Diving Cat
           </h1>
           <nav className="flex gap-4">
             <button
@@ -563,7 +563,7 @@ function generateMarkdown(
   }
 
   md += `---\n\n`;
-  md += `*Descent - 프리다이빙 폼 코치로 분석됨*\n`;
+  md += `*Diving Cat - 프리다이빙 폼 코치로 분석됨*\n`;
 
   return md;
 }
