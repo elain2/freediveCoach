@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* Descent 테마 - 다이브 컴퓨터 느낌 */
+:root {
+  --descent-deep: #0a1628;
+  --descent-ocean: #0f2847;
+  --descent-surface: #1a3a5c;
+  --descent-accent: #00d4ff;
+  --descent-accent-dim: #0099cc;
+  --descent-warning: #ff6b35;
+  --descent-success: #00cc88;
+  --descent-text: #e8f4f8;
+  --descent-text-dim: #8ba4b4;
+  --descent-border: #2a4a6a;
+  --descent-card: rgba(15, 40, 71, 0.8);
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, var(--descent-deep) 0%, var(--descent-ocean) 100%);
+  min-height: 100vh;
+  color: var(--descent-text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#root {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 1rem;
+  min-height: 100vh;
+}
