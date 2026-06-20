@@ -1,31 +1,80 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Descent 테마 - 다이브 컴퓨터 느낌 */
 :root {
-  --descent-deep: #0a1628;
-  --descent-ocean: #0f2847;
-  --descent-surface: #1a3a5c;
-  --descent-accent: #00d4ff;
-  --descent-accent-dim: #0099cc;
-  --descent-warning: #ff6b35;
-  --descent-success: #00cc88;
-  --descent-text: #e8f4f8;
-  --descent-text-dim: #8ba4b4;
-  --descent-border: #2a4a6a;
-  --descent-card: rgba(15, 40, 71, 0.8);
+  --abyss: #03141d;
+  --deep: #082534;
+  --mid: #0d3547;
+  --card: #103a4d;
+  --line: rgba(125, 185, 200, 0.16);
+  --aqua: #4fe0cc;
+  --aqua-dim: #2a9d8f;
+  --sky: #7fd4ff;
+  --coral: #ff8d6b;
+  --amber: #ffce6b;
+  --ink: #e8f5f6;
+  --muted: #84a8b2;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
 body {
   margin: 0;
-  background: linear-gradient(180deg, var(--descent-deep) 0%, var(--descent-ocean) 100%);
-  min-height: 100vh;
-  color: var(--descent-text);
-  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background: radial-gradient(120% 80% at 50% -10%, #14536b 0%, var(--mid) 22%, var(--deep) 55%, var(--abyss) 100%);
+  background-attachment: fixed;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
 }
 
-#root {
-  max-width: 1024px;
-  margin: 0 auto;
-  padding: 1rem;
-  min-height: 100vh;
+.mono {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+}
+
+/* score meter fill animation */
+.fill {
+  transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sonar {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line);
+  border-top-color: var(--aqua);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* the descent guide rope */
+.rope::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 6px;
+  bottom: 24px;
+  width: 2px;
+  background: linear-gradient(var(--aqua), var(--aqua-dim) 40%, var(--line));
+  border-radius: 2px;
+}
+
+input[type='range'] {
+  accent-color: var(--aqua);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
 }

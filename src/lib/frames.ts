@@ -1,120 +1,106 @@
-// src/lib/frames.ts
-// 영상에서 프레임 추출 유틸리티
-
-/**
- * 영상 길이에 따른 프레임 수 결정 (상한 12장)
- */
 export function frameCountFor(durationSec: number): number {
   if (durationSec <= 30) return 5;
   if (durationSec <= 60) return 8;
   if (durationSec <= 120) return 10;
-  return 12; // 비용/지연/품질 상한
+  return 12; // cap for cost / latency / quality
 }
+
+export interface ExtractResult {
+  frames: string[]; // base64 jpeg, no data: prefix
+  thumbnail: string; // base64 jpeg
+  durationSec: number;
+  frameCount: number;
+}
+
+const MAX_EDGE = 720;
+const JPEG_QUALITY = 0.78;
 
 /**
- * 구간 집중 모드에서의 프레임 수 (최소 5장 보장)
- */
-export function frameCountForSegment(segmentDurationSec: number): number {
-  return Math.max(5, frameCountFor(segmentDurationSec));
-}
-
-/**
- * 영상이 상한(120초)을 초과하는지 확인
- */
-export function isOverLimit(durationSec: number): boolean {
-  return durationSec > 120;
-}
-
-export interface ExtractOptions {
-  startSec?: number;
-  endSec?: number;
-  maxDimension?: number;  // 긴 변 최대 크기 (기본 720)
-  quality?: number;       // JPEG 품질 (기본 0.78)
-}
-
-/**
- * video 엘리먼트에서 프레임 추출
- * @returns base64 JPEG 문자열 배열 (data: prefix 없음)
+ * Extracts evenly spaced frames from a video file.
+ * If `segment` is given, samples within [start, end] (segment-focus mode).
  */
 export async function extractFrames(
-  video: HTMLVideoElement,
-  options: ExtractOptions = {}
-): Promise<string[]> {
-  const {
-    startSec = 0,
-    endSec = video.duration,
-    maxDimension = 720,
-    quality = 0.78,
-  } = options;
+  file: File,
+  segment?: { startSec: number; endSec: number },
+  onProgress?: (done: number, total: number) => void
+): Promise<ExtractResult> {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'auto';
+  video.muted = true;
+  (video as HTMLVideoElement & { playsInline: boolean }).playsInline = true;
+  video.src = url;
 
-  const duration = endSec - startSec;
-  const count = options.startSec !== undefined && options.endSec !== undefined
-    ? frameCountForSegment(duration)
-    : frameCountFor(duration);
+  try {
+    await once(video, 'loadedmetadata');
+    const fullDuration = video.duration;
+    const start = segment ? clamp(segment.startSec, 0, fullDuration) : 0;
+    const end = segment ? clamp(segment.endSec, start + 0.1, fullDuration) : fullDuration;
+    const span = end - start;
+    const count = segment ? Math.max(5, frameCountFor(span)) : frameCountFor(span);
 
-  // 캔버스 설정
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas context not available');
+    const scale = video.videoWidth > MAX_EDGE ? MAX_EDGE / video.videoWidth : 1;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(video.videoWidth * scale) || MAX_EDGE;
+    canvas.height = Math.round(video.videoHeight * scale) || Math.round(MAX_EDGE * 0.56);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas context unavailable');
 
-  // 다운스케일 계산
-  const scale = Math.min(1, maxDimension / Math.max(video.videoWidth, video.videoHeight));
-  canvas.width = Math.round(video.videoWidth * scale);
-  canvas.height = Math.round(video.videoHeight * scale);
+    // sample evenly, nudged slightly inside the edges
+    const times: number[] = [];
+    for (let i = 0; i < count; i++) {
+      times.push(start + (span * (i + 1)) / (count + 1));
+    }
 
-  const frames: string[] = [];
+    const frames: string[] = [];
+    for (let i = 0; i < times.length; i++) {
+      await seek(video, times[i]);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      frames.push(canvas.toDataURL('image/jpeg', JPEG_QUALITY).split(',')[1]);
+      onProgress?.(i + 1, times.length);
+    }
 
-  // 양 끝을 살짝 안쪽으로 (첫/마지막 프레임 흐림 방지)
-  const padding = duration * 0.02; // 2% 패딩
-  const effectiveStart = startSec + padding;
-  const effectiveEnd = endSec - padding;
-  const effectiveDuration = effectiveEnd - effectiveStart;
-  const interval = effectiveDuration / (count - 1);
-
-  for (let i = 0; i < count; i++) {
-    const time = effectiveStart + interval * i;
-    await seekTo(video, time);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', quality);
-    // data:image/jpeg;base64, 제거
-    frames.push(dataUrl.split(',')[1]);
+    return {
+      frames,
+      thumbnail: frames[Math.floor(frames.length / 2)] ?? frames[0],
+      durationSec: fullDuration,
+      frameCount: frames.length,
+    };
+  } finally {
+    URL.revokeObjectURL(url);
   }
-
-  return frames;
 }
 
-/**
- * video를 특정 시간으로 seek
- */
-function seekTo(video: HTMLVideoElement, time: number): Promise<void> {
-  return new Promise((resolve) => {
-    const onSeeked = () => {
-      video.removeEventListener('seeked', onSeeked);
+function once(el: HTMLMediaElement, ev: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const ok = () => {
+      cleanup();
       resolve();
     };
-    video.addEventListener('seeked', onSeeked);
-    video.currentTime = time;
+    const err = () => {
+      cleanup();
+      reject(new Error(`video ${ev} failed`));
+    };
+    const cleanup = () => {
+      el.removeEventListener(ev, ok);
+      el.removeEventListener('error', err);
+    };
+    el.addEventListener(ev, ok);
+    el.addEventListener('error', err);
   });
 }
 
-/**
- * 썸네일 추출 (첫 프레임 기준, 목록용)
- */
-export async function extractThumbnail(
-  video: HTMLVideoElement,
-  maxDimension = 320
-): Promise<string> {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas context not available');
+function seek(video: HTMLVideoElement, t: number): Promise<void> {
+  return new Promise((resolve) => {
+    const handler = () => {
+      video.removeEventListener('seeked', handler);
+      resolve();
+    };
+    video.addEventListener('seeked', handler);
+    video.currentTime = t;
+  });
+}
 
-  const scale = Math.min(1, maxDimension / Math.max(video.videoWidth, video.videoHeight));
-  canvas.width = Math.round(video.videoWidth * scale);
-  canvas.height = Math.round(video.videoHeight * scale);
-
-  // 10% 지점에서 썸네일 추출 (시작 프레임 흐림 방지)
-  await seekTo(video, video.duration * 0.1);
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  return canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v));
 }

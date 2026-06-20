@@ -1,38 +1,28 @@
-// src/lib/api.ts
-// API 클라이언트
+import type { AnalysisResult, AnalysisMode, DisciplineId, DivePlan } from './types';
 
-import type { AnalyzeRequest, AnalyzeResponse, AnalyzeErrorResponse } from '../../shared/types';
-
-const API_BASE = '/api';
-
-export class ApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-  }
+export async function analyzeFrames(params: {
+  discipline: DisciplineId;
+  mode: AnalysisMode;
+  segment?: { startSec: number; endSec: number };
+  frames: string[];
+}): Promise<AnalysisResult> {
+  const res = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || '분석 요청에 실패했어요.');
+  return data as AnalysisResult;
 }
 
-/**
- * 프레임 분석 요청
- */
-export async function analyzeFrames(request: AnalyzeRequest): Promise<AnalyzeResponse> {
-  const response = await fetch(`${API_BASE}/analyze`, {
+export async function parsePlan(text: string): Promise<DivePlan> {
+  const res = await fetch('/api/parse-plan', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(request),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
   });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    const errorData = data as AnalyzeErrorResponse;
-    throw new ApiError(errorData.error || '분석 중 오류가 발생했습니다', response.status);
-  }
-
-  return data as AnalyzeResponse;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || '플랜을 이해하지 못했어요.');
+  return data as DivePlan;
 }
