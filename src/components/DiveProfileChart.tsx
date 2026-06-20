@@ -96,20 +96,41 @@ export default function DiveProfileChart({ profile }: { profile: DiveProfile }) 
         fill="none" stroke="#2a9d8f" strokeWidth={3} strokeLinecap="round" />
 
       {/* markers */}
-      {profile.markers.map((m, i) => {
+      {profile.markers.map((m, i, arr) => {
         const x = xT(m.t);
         const y = yD(m.depth);
-        const left = x > (padR + padL) / 2;
+        const isRight = x > (padR + padL) / 2;
+
+        // 겹침 방지: 같은 phase의 이전 마커와 y가 가까우면 오프셋 추가
+        const samePhaseIdx = arr.slice(0, i).filter(p => p.phase === m.phase).length;
+        const yOffset = -8 - (samePhaseIdx * 18);
+
+        const labelX = isRight ? x - 12 : x + 12;
+        const labelY = y + yOffset;
+        const labelColor = m.tone === 'amber' ? '#ffce6b' : m.tone === 'coral' ? '#ffd7c9' : '#cfeaf2';
+
         return (
           <g key={i}>
+            {/* 마커-라벨 연결선 */}
+            <line x1={x} y1={y - 6} x2={x} y2={labelY + 4} stroke={TONE[m.tone]} strokeWidth={1} strokeOpacity={0.4} />
             <circle cx={x} cy={y} r={5} fill="#03141d" stroke={TONE[m.tone]} strokeWidth={2} />
+            {/* 라벨 배경 */}
+            <rect
+              x={isRight ? labelX - m.label.length * 5.5 - 6 : labelX - 4}
+              y={labelY - 10}
+              width={m.label.length * 5.5 + 10}
+              height={16}
+              rx={4}
+              fill="#03141d"
+              fillOpacity={0.85}
+            />
             <text
-              x={left ? x - 10 : x + 10}
-              y={y - 6}
-              fill={m.tone === 'amber' ? '#ffce6b' : m.tone === 'coral' ? '#ffd7c9' : '#cfeaf2'}
-              fontSize={11}
-              fontWeight={m.tone === 'amber' ? 700 : 400}
-              textAnchor={left ? 'end' : 'start'}
+              x={labelX}
+              y={labelY}
+              fill={labelColor}
+              fontSize={10}
+              fontWeight={m.tone === 'amber' ? 700 : 500}
+              textAnchor={isRight ? 'end' : 'start'}
             >
               {m.label}
             </text>
