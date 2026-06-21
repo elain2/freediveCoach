@@ -2,6 +2,9 @@ import { useState } from 'react';
 import AnalyzeView from './components/AnalyzeView';
 import PlanView from './components/PlanView';
 import HistoryView from './components/HistoryView';
+import AdBanner from './components/AdBanner';
+
+const ADFIT_UNIT_ID = 'DAN-FSn400opi3lj0gM9';
 
 type Tab = 'analyze' | 'plan' | 'history';
 
@@ -45,6 +48,12 @@ export default function App() {
       {tab === 'analyze' && <AnalyzeView />}
       {tab === 'plan' && <PlanView />}
       {tab === 'history' && <HistoryView />}
+
+      {ADFIT_UNIT_ID && (
+        <div className="mt-12">
+          <AdBanner unitId={ADFIT_UNIT_ID} width={300} height={250} />
+        </div>
+      )}
 
       <footer className="mt-16 border-t border-[var(--line)] pt-6 text-center text-[13px] text-muted">
         문의는 인스타 <a href="https://instagram.com/free.young.510" target="_blank" rel="noopener noreferrer" className="text-aqua hover:underline">@free.young.510</a>으로
