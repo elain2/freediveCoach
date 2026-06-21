@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callClaude, extractJson } from './_lib/anthropic';
+import { callGemini, extractJson } from './_lib/gemini';
 
 interface DivePlan {
   discipline: string;
@@ -47,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 규칙: 수심은 모두 양수로. 속도가 언급 없으면 descentSpeed/ascentSpeed는 1.0으로. discipline 불명확하면 "CWT". 다른 말 없이 JSON만 출력(코드펜스 금지).`;
 
-    const raw = extractJson<Partial<DivePlan>>(await callClaude([{ type: 'text', text: prompt }], 400));
+    const raw = extractJson<Partial<DivePlan>>(await callGemini([{ text: prompt }], 400));
     res.status(200).json(normalize(raw));
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : '서버 오류' });

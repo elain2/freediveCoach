@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { RUBRICS, type DisciplineId } from './_lib/rubrics';
-import { callClaude, extractJson } from './_lib/anthropic';
+import { callGemini, extractJson } from './_lib/gemini';
 
 interface CategoryResult {
   name: string;
@@ -74,20 +74,19 @@ ${rubric.categories.map((c) => `    {"name":"${c.label}","score":4,"note":"보�
 }
 score는 0.5 단위 1~5. 각 문장은 간결하게.`;
 
-    const content = [
+    const parts = [
       ...frames.map((data) => ({
-        type: 'image' as const,
-        source: { type: 'base64' as const, media_type: 'image/jpeg', data },
+        inline_data: { mime_type: 'image/jpeg', data },
       })),
-      { type: 'text' as const, text: prompt },
+      { text: prompt },
     ];
 
     let parsed: AnalysisResult;
     try {
-      parsed = extractJson<AnalysisResult>(await callClaude(content, 1500));
+      parsed = extractJson<AnalysisResult>(await callGemini(parts, 1500));
     } catch {
       // one retry
-      parsed = extractJson<AnalysisResult>(await callClaude(content, 1500));
+      parsed = extractJson<AnalysisResult>(await callGemini(parts, 1500));
     }
 
     if (!parsed?.categories?.length) {
