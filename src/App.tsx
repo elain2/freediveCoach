@@ -19,9 +19,9 @@ export default function App() {
       <header className="pt-14 pb-7">
         <div className="mono mb-5 flex items-center gap-2.5 text-[11px] uppercase tracking-[0.32em] text-aqua">
           <span className="inline-block h-px w-6 bg-aqua opacity-60" />
-          AIDA · Freedive Coach
+          Freedive Coach
         </div>
-        <h1 className="text-[clamp(40px,9vw,68px)] font-extrabold leading-[0.98] tracking-tight">Descent</h1>
+        <h1 className="text-[clamp(40px,9vw,68px)] font-extrabold leading-[0.98] tracking-tight">Diving Cat</h1>
         <p className="mt-3.5 max-w-[44ch] text-[15px] text-muted">
           다이빙 영상 한 편으로 폼을 짚고, 플랜을 뎁스 프로파일로 그립니다.
         </p>
