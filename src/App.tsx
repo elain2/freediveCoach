@@ -1,65 +1,30 @@
 import { useState } from 'react';
 import AnalyzeView from './components/AnalyzeView';
-import PlanView from './components/PlanView';
+import DiveSimulation from './components/breath/DiveSimulation';
 import BreathView from './components/BreathView';
 import HistoryView from './components/HistoryView';
 import AdBanner from './components/AdBanner';
 
 const ADFIT_UNIT_ID = 'DAN-FSn400opi3lj0gM9';
 
-type Tab = 'analyze' | 'plan' | 'breath' | 'history';
+type Tab = 'analyze' | 'simulation' | 'breath' | 'history';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'analyze', label: '폼 분석' },
-  { id: 'plan', label: '다이브 플랜' },
+  { id: 'simulation', label: '다이빙 시뮬레이터' },
   { id: 'breath', label: '호흡 훈련' },
   { id: 'history', label: '기록' },
 ];
 
 function DivingCatLogo() {
   return (
-    <svg width="72" height="72" viewBox="0 0 72 72" fill="none" className="drop-shadow-lg">
-      {/* 머리 */}
-      <ellipse cx="36" cy="40" rx="22" ry="20" fill="#ffecd2" />
-      {/* 왼쪽 귀 */}
-      <path d="M18 28 L14 14 L26 22 Z" fill="#ffecd2" />
-      <path d="M19 26 L17 18 L24 23 Z" fill="#ffcba4" />
-      {/* 오른쪽 귀 */}
-      <path d="M54 28 L58 14 L46 22 Z" fill="#ffecd2" />
-      <path d="M53 26 L55 18 L48 23 Z" fill="#ffcba4" />
-      {/* 새싹 */}
-      <g className="sprout">
-        <path d="M36 14 Q32 8 36 4 Q40 8 36 14" fill="#a8d86e" />
-        <path d="M36 14 Q40 10 44 6 Q40 12 36 14" fill="#8bc34a" />
-        <line x1="36" y1="14" x2="36" y2="20" stroke="#7cb342" strokeWidth="2" strokeLinecap="round" />
-      </g>
-      {/* 마스크 */}
-      <path
-        d="M16 38 Q16 28 36 28 Q56 28 56 38 Q56 48 36 50 Q16 48 16 38"
-        fill="rgba(125, 212, 200, 0.3)"
-        stroke="#7dd4c8"
-        strokeWidth="3"
-      />
-      {/* 마스크 빛 반사 */}
-      <path d="M22 34 Q26 32 30 34" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" />
-      {/* 눈 */}
-      <ellipse cx="28" cy="40" rx="3" ry="4" fill="#4a3728" />
-      <ellipse cx="44" cy="40" rx="3" ry="4" fill="#4a3728" />
-      <circle cx="29" cy="39" r="1" fill="white" />
-      <circle cx="45" cy="39" r="1" fill="white" />
-      {/* 코 */}
-      <ellipse cx="36" cy="48" rx="3" ry="2" fill="#ffb199" />
-      {/* 볼터치 */}
-      <ellipse cx="22" cy="46" rx="4" ry="2" fill="#ffcba4" opacity="0.6" />
-      <ellipse cx="50" cy="46" rx="4" ry="2" fill="#ffcba4" opacity="0.6" />
-      {/* 수염 */}
-      <g stroke="#c4a574" strokeWidth="1" strokeLinecap="round" opacity="0.6">
-        <line x1="10" y1="42" x2="18" y2="44" />
-        <line x1="10" y1="46" x2="18" y2="46" />
-        <line x1="54" y1="44" x2="62" y2="42" />
-        <line x1="54" y1="46" x2="62" y2="46" />
-      </g>
-    </svg>
+    <img
+      src="/diving-cat.png"
+      alt="Diving Cat"
+      width={72}
+      height={72}
+      className="rounded-full drop-shadow-lg"
+    />
   );
 }
 
@@ -131,7 +96,7 @@ export default function App() {
         </nav>
 
         {tab === 'analyze' && <AnalyzeView />}
-        {tab === 'plan' && <PlanView />}
+        {tab === 'simulation' && <DiveSimulation />}
         {tab === 'breath' && <BreathView />}
         {tab === 'history' && <HistoryView />}
 

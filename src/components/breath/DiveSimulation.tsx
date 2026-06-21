@@ -155,10 +155,15 @@ export default function DiveSimulation() {
   const diverPosition = (currentDepth / params.targetDepth) * 100;
 
   return (
-    <div className="space-y-4">
-      {/* 파라미터 입력 */}
-      <div className="rounded-2xl border border-[var(--line)] bg-card/40 p-5">
-        <h3 className="mb-4 text-[15px] font-semibold">다이브 파라미터</h3>
+    <div>
+      <p className="mb-6 max-w-[48ch] text-[15px] text-muted">
+        목표 수심과 속도를 설정하고 다이브 타이밍을 시뮬레이션합니다. 마일스톤마다 사운드로 알려줍니다.
+      </p>
+
+      <div className="space-y-4">
+        {/* 파라미터 입력 */}
+        <div className="rounded-2xl border border-[var(--line)] bg-card/40 p-5">
+          <h3 className="mb-4 text-[15px] font-semibold">다이브 파라미터</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
             { key: 'targetDepth', label: '목표 수심 (m)' },
@@ -255,23 +260,24 @@ export default function DiveSimulation() {
         </div>
       </div>
 
-      {/* 컨트롤 */}
-      <div className="flex gap-3">
-        {isRunning ? (
-          <button
-            onClick={reset}
-            className="flex-1 rounded-xl border border-coral bg-coral/10 py-3.5 text-[14px] font-bold text-coral transition-transform hover:-translate-y-px"
-          >
-            중지
-          </button>
-        ) : (
-          <button
-            onClick={start}
-            className="flex-1 rounded-xl bg-aqua py-3.5 text-[14px] font-bold text-[#04222a] transition-transform hover:-translate-y-px"
-          >
-            시뮬레이션 시작
-          </button>
-        )}
+        {/* 컨트롤 */}
+        <div className="flex gap-3">
+          {isRunning ? (
+            <button
+              onClick={reset}
+              className="flex-1 rounded-xl border border-coral bg-coral/10 py-3.5 text-[14px] font-bold text-coral transition-transform hover:-translate-y-px"
+            >
+              중지
+            </button>
+          ) : (
+            <button
+              onClick={start}
+              className="flex-1 rounded-xl bg-aqua py-3.5 text-[14px] font-bold text-[#04222a] transition-transform hover:-translate-y-px"
+            >
+              시뮬레이션 시작
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
