@@ -3,18 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --abyss: #03141d;
-  --deep: #082534;
-  --mid: #0d3547;
-  --card: #103a4d;
-  --line: rgba(125, 185, 200, 0.16);
-  --aqua: #4fe0cc;
-  --aqua-dim: #2a9d8f;
-  --sky: #7fd4ff;
-  --coral: #ff8d6b;
-  --amber: #ffce6b;
-  --ink: #e8f5f6;
-  --muted: #84a8b2;
+  /* Diving Cat 브랜드 컬러 - 따뜻한 청록색 기반 */
+  --abyss: #0a1f2a;
+  --deep: #0f3344;
+  --mid: #1a4a5e;
+  --card: #1e5468;
+  --line: rgba(125, 212, 200, 0.18);
+  --aqua: #7dd4c8;
+  --aqua-dim: #5cbfb3;
+  --sky: #9de5e0;
+  --coral: #ffb199;
+  --amber: #ffd699;
+  --ink: #f0f9f8;
+  --muted: #94bfc0;
+  /* 추가 브랜드 컬러 */
+  --mint: #a8e6cf;
+  --cream: #ffecd2;
+  --sprout: #a8d86e;
 }
 
 html,
@@ -26,7 +31,12 @@ body,
 body {
   margin: 0;
   color: var(--ink);
-  background: radial-gradient(120% 80% at 50% -10%, #14536b 0%, var(--mid) 22%, var(--deep) 55%, var(--abyss) 100%);
+  background:
+    /* 수면 빛 효과 */
+    radial-gradient(ellipse 80% 50% at 30% -20%, rgba(158, 229, 224, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 70% -10%, rgba(125, 212, 200, 0.12) 0%, transparent 45%),
+    /* 메인 그라데이션 - 밝은 청록에서 깊은 바다로 */
+    linear-gradient(180deg, #2a7d8a 0%, #1a5a6a 15%, var(--mid) 35%, var(--deep) 65%, var(--abyss) 100%);
   background-attachment: fixed;
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -70,6 +80,102 @@ body {
 
 input[type='range'] {
   accent-color: var(--aqua);
+}
+
+/* 타이머 펄스 애니메이션 */
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.pulse-soft {
+  animation: pulse-soft 1s ease-in-out infinite;
+}
+
+/* 다이버 버블 애니메이션 */
+@keyframes bubble-rise {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-20px) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.bubble {
+  animation: bubble-rise 1.5s ease-out infinite;
+}
+
+/* 플로팅 버블 배경 */
+@keyframes float-bubble {
+  0% {
+    transform: translateY(100vh) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.4;
+  }
+  90% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-10vh) scale(1);
+    opacity: 0;
+  }
+}
+
+.bubbles {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bubbles span {
+  position: absolute;
+  bottom: -20px;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), rgba(125, 212, 200, 0.1));
+  border-radius: 50%;
+  animation: float-bubble linear infinite;
+}
+
+/* 새싹 흔들림 */
+@keyframes sprout-sway {
+  0%, 100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
+.sprout {
+  animation: sprout-sway 2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* 부드러운 등장 */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fade-in-up 0.5s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

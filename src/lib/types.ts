@@ -57,6 +57,44 @@ export interface DiveProfile {
   markers: ProfileMarker[];
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 호흡 훈련 (CO2/O2 테이블)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type TableMode = 'co2' | 'o2';
+
+export interface TableRound {
+  round: number;
+  breatheSec: number;
+  holdSec: number;
+}
+
+export interface BreathTable {
+  mode: TableMode;
+  pbSec: number;
+  rounds: TableRound[];
+  totalTimeSec: number;
+  totalHoldSec: number;
+}
+
+export type TimerPhase = 'idle' | 'breathe' | 'hold' | 'complete';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 다이브 시뮬레이션
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DiveSimParams {
+  targetDepth: number;
+  neutralBuoyancy: number;
+}
+
+export interface DiveSimMilestone {
+  depth: number;
+  timeSec: number;
+  label: string;
+  event: 'surface' | 'mouthfill' | 'freefall' | 'turn' | 'complete';
+}
+
 export const DISCIPLINES: { id: DisciplineId; label: string; ready: boolean }[] = [
   { id: 'CWT', label: '콘스턴트 웨이트 (CWT)', ready: true },
   { id: 'CNF', label: '콘스턴트 노핀 (CNF)', ready: true },
