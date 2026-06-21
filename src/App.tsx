@@ -45,6 +45,10 @@ export default function App() {
       {tab === 'analyze' && <AnalyzeView />}
       {tab === 'plan' && <PlanView />}
       {tab === 'history' && <HistoryView />}
+
+      <footer className="mt-16 border-t border-[var(--line)] pt-6 text-center text-[13px] text-muted">
+        문의는 인스타 <a href="https://instagram.com/free.young.510" target="_blank" rel="noopener noreferrer" className="text-aqua hover:underline">@free.young.510</a>으로
+      </footer>
     </div>
   );
 }

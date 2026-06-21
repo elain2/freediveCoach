@@ -76,7 +76,7 @@ export default function AnalyzeView() {
 
   return (
     <div>
-      <p className="mb-6 max-w-[46ch] text-[15px] text-muted">
+      <p className="mb-6 max-w-[46ch] break-keep text-[15px] text-muted">
         측면에서 찍은 다이빙 클립을 올리면 프레임을 추출해 유선형·핀킥·입수·이완을 읽고,
         블로그·쇼츠에 바로 옮길 코칭 카드로 돌려줍니다.
       </p>
