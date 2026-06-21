@@ -76,7 +76,7 @@ export default function App() {
             </div>
           </div>
           <p className="mt-3 max-w-[44ch] text-[15px] text-muted">
-            다이빙 영상 한 편으로 폼을 짚고, 플랜을 뎁스 프로파일로 그립니다.
+            딥다이버가 되기 위한 첫걸음!
           </p>
         </header>
 
