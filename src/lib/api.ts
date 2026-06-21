@@ -1,5 +1,19 @@
 import type { AnalysisResult, AnalysisMode, DisciplineId, DivePlan } from './types';
 
+async function parseJsonResponse<T>(res: Response, fallbackError: string): Promise<T> {
+  const text = await res.text();
+  try {
+    const data = JSON.parse(text);
+    if (!res.ok) throw new Error(data?.error || fallbackError);
+    return data as T;
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      throw new Error(fallbackError);
+    }
+    throw e;
+  }
+}
+
 export async function analyzeFrames(params: {
   discipline: DisciplineId;
   mode: AnalysisMode;
@@ -11,9 +25,7 @@ export async function analyzeFrames(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || '분석 요청에 실패했어요.');
-  return data as AnalysisResult;
+  return parseJsonResponse<AnalysisResult>(res, '분석 요청에 실패했어요. 잠시 후 다시 시도해 주세요.');
 }
 
 export async function parsePlan(text: string): Promise<DivePlan> {
@@ -22,7 +34,5 @@ export async function parsePlan(text: string): Promise<DivePlan> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || '플랜을 이해하지 못했어요.');
-  return data as DivePlan;
+  return parseJsonResponse<DivePlan>(res, '플랜을 이해하지 못했어요. 잠시 후 다시 시도해 주세요.');
 }
