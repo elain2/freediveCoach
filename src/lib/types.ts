@@ -59,7 +59,7 @@ export interface DiveProfile {
 
 export const DISCIPLINES: { id: DisciplineId; label: string; ready: boolean }[] = [
   { id: 'CWT', label: '콘스턴트 웨이트 (CWT)', ready: true },
-  { id: 'CNF', label: '콘스턴트 노핀 (CNF)', ready: false },
+  { id: 'CNF', label: '콘스턴트 노핀 (CNF)', ready: true },
   { id: 'FIM', label: '프리 이머전 (FIM)', ready: true },
   { id: 'DYN', label: '다이나믹 (DYN)', ready: false },
   { id: 'STA', label: '스태틱 (STA)', ready: false },

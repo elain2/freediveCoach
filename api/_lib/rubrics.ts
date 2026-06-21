@@ -81,4 +81,40 @@ export const RUBRICS: Partial<Record<DisciplineId, Rubric>> = {
       },
     ],
   },
+  CNF: {
+    id: 'CNF',
+    label: '콘스턴트 노핀 (CNF)',
+    context:
+      'AIDA 기준 핀 없이 맨발로 수영하는 수직 다이빙. 프레임에서 실제로 보이는 것만 근거로 삼고, 이퀄라이징·컨트랙션·내성처럼 영상으로 판단 불가한 것은 점수에 반영하지 말고 평가에서 뺀다.',
+    categories: [
+      {
+        id: 'streamline',
+        label: '유선형',
+        criteria:
+          '머리 중립(턱 살짝 당김), 양팔을 뻗어 상완이 귀를 감싸는지, 몸이 일직선인지, 불필요한 아치나 꺾임.',
+      },
+      {
+        id: 'kick',
+        label: '킥',
+        criteria:
+          '평영 킥(브레스트 킥) 또는 돌핀 킥의 효율성, 무릎 굽힘 각도, 발목 유연성, 추진력 대비 에너지 소모.',
+      },
+      {
+        id: 'stroke',
+        label: '스트로크',
+        criteria:
+          '팔 동작의 타이밍과 효율, 물 잡기(캐치)의 정확성, 리커버리 동작의 매끄러움, 킥과의 조화.',
+      },
+      {
+        id: 'entry',
+        label: '입수·자세',
+        criteria: '덕다이브의 몸 접기와 다리 수직 정렬, 하강 시작 자세.',
+      },
+      {
+        id: 'relax',
+        label: '이완',
+        criteria: '어깨·목·손·얼굴의 긴장 신호와 전반적인 평온함.',
+      },
+    ],
+  },
 };
