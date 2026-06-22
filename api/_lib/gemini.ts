@@ -9,11 +9,15 @@ type ContentPart =
 
 export async function callGemini(parts: ContentPart[], maxTokens = 1500): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
+  console.log('[gemini] API key exists:', !!apiKey);
+  console.log('[gemini] Using model:', MODEL);
+
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured on the server.');
 
-  const url = `${GEMINI_URL}/${MODEL}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_URL}/${MODEL}:generateContent?key=${apiKey.slice(0, 8)}...`;
+  console.log('[gemini] URL:', url);
 
-  const res = await fetch(url, {
+  const res = await fetch(`${GEMINI_URL}/${MODEL}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -27,8 +31,11 @@ export async function callGemini(parts: ContentPart[], maxTokens = 1500): Promis
     }),
   });
 
+  console.log('[gemini] response status:', res.status);
+
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
+    console.error('[gemini] error detail:', detail.slice(0, 500));
     throw new Error(`Gemini API ${res.status}: ${detail.slice(0, 300)}`);
   }
 
@@ -37,7 +44,12 @@ export async function callGemini(parts: ContentPart[], maxTokens = 1500): Promis
   };
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Gemini returned empty response');
+  console.log('[gemini] response text length:', text?.length ?? 0);
+
+  if (!text) {
+    console.error('[gemini] empty response, full data:', JSON.stringify(data).slice(0, 500));
+    throw new Error('Gemini returned empty response');
+  }
 
   return text;
 }
