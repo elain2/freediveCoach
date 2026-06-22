@@ -95,6 +95,13 @@ export default function App() {
           ))}
         </nav>
 
+        {/* 상단 광고 - 항상 보이는 위치 */}
+        {ADFIT_UNIT_ID && (
+          <div className="mb-8">
+            <AdBanner unitId={ADFIT_UNIT_ID} width={320} height={100} />
+          </div>
+        )}
+
         {tab === 'analyze' && <AnalyzeView />}
         {tab === 'simulation' && <DiveSimulation />}
         {tab === 'breath' && <BreathView />}
