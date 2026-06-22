@@ -76,9 +76,6 @@ const MODEL = process.env.MODEL || 'gemini-2.5-flash';
 
 async function callGemini(parts: ContentPart[], maxTokens = 1500): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
-  console.log('[gemini] API key exists:', !!apiKey);
-  console.log('[gemini] Using model:', MODEL);
-
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured on the server.');
 
   const res = await fetch(`${GEMINI_URL}/${MODEL}:generateContent?key=${apiKey}`, {
@@ -90,11 +87,8 @@ async function callGemini(parts: ContentPart[], maxTokens = 1500): Promise<strin
     }),
   });
 
-  console.log('[gemini] response status:', res.status);
-
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    console.error('[gemini] error detail:', detail.slice(0, 500));
     throw new Error(`Gemini API ${res.status}: ${detail.slice(0, 300)}`);
   }
 
@@ -103,12 +97,7 @@ async function callGemini(parts: ContentPart[], maxTokens = 1500): Promise<strin
   };
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  console.log('[gemini] response text length:', text?.length ?? 0);
-
-  if (!text) {
-    console.error('[gemini] empty response:', JSON.stringify(data).slice(0, 500));
-    throw new Error('Gemini returned empty response');
-  }
+  if (!text) throw new Error('Gemini returned empty response');
 
   return text;
 }
@@ -118,7 +107,7 @@ function extractJson<T>(text: string): T {
   try {
     return JSON.parse(cleaned) as T;
   } catch {
-    const match = cleaned.match(/[{[][\s\S]*[}\]]/);
+    const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) return JSON.parse(match[0]) as T;
     throw new Error('Model did not return valid JSON.');
   }
@@ -128,8 +117,6 @@ function extractJson<T>(text: string): T {
 const MAX_FRAMES = 12;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log('[analyze] handler started');
-
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -142,8 +129,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       segment?: { startSec: number; endSec: number };
       frames: string[];
     };
-
-    console.log('[analyze] discipline:', discipline, 'mode:', mode, 'frames:', frames?.length);
 
     const rubric = RUBRICS[discipline];
     if (!rubric) {
@@ -192,31 +177,21 @@ score는 0.5 단위 1~5. 각 문장은 간결하게.`;
       { text: prompt },
     ];
 
-    console.log('[analyze] calling Gemini API...');
-
     let parsed: AnalysisResult;
     try {
-      const raw = await callGemini(parts, 1500);
-      console.log('[analyze] Gemini response length:', raw?.length);
-      parsed = extractJson<AnalysisResult>(raw);
-    } catch (e) {
-      console.log('[analyze] first attempt failed:', e instanceof Error ? e.message : e);
-      const raw = await callGemini(parts, 1500);
-      console.log('[analyze] retry response length:', raw?.length);
-      parsed = extractJson<AnalysisResult>(raw);
+      parsed = extractJson<AnalysisResult>(await callGemini(parts, 1500));
+    } catch {
+      // one retry
+      parsed = extractJson<AnalysisResult>(await callGemini(parts, 1500));
     }
 
     if (!parsed?.categories?.length) {
-      console.log('[analyze] invalid result format:', JSON.stringify(parsed).slice(0, 200));
       res.status(502).json({ error: '결과 형식이 올바르지 않아요. 다시 시도해 주세요.' });
       return;
     }
 
-    console.log('[analyze] success');
     res.status(200).json(parsed);
   } catch (err) {
-    console.error('[analyze] error:', err instanceof Error ? err.message : err);
-    console.error('[analyze] stack:', err instanceof Error ? err.stack : 'no stack');
     res.status(500).json({ error: err instanceof Error ? err.message : '서버 오류' });
   }
 }
