@@ -72,7 +72,7 @@ const RUBRICS: Partial<Record<DisciplineId, Rubric>> = {
 
 // ─── Gemini API ──────────────────────────────────────────────────────────────
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL = process.env.MODEL || 'gemini-2.0-flash';
+const MODEL = process.env.MODEL || 'gemini-2.5-flash';
 
 async function callGemini(parts: ContentPart[], maxTokens = 1500): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
