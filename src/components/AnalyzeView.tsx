@@ -50,7 +50,7 @@ export default function AnalyzeView() {
       const ex = await extractFrames(file, segment);
       setFrames(ex.frames.map((f) => `data:image/jpeg;base64,${f}`));
 
-      setBusyMsg('폼 읽는 중 — 코치가 영상을 보고 있어요…');
+      setBusyMsg('🐱 폼 읽는 중 — 코치가 영상을 보고 있어요…');
       const res = await analyzeFrames({ discipline, mode, segment, frames: ex.frames });
       setResult(res);
 

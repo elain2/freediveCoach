@@ -74,7 +74,7 @@ const RUBRICS: Partial<Record<DisciplineId, Rubric>> = {
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MODEL = process.env.MODEL || 'gemini-2.5-flash';
 
-async function callGemini(parts: ContentPart[], maxTokens = 1500): Promise<string> {
+async function callGemini(parts: ContentPart[]): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured on the server.');
 
@@ -84,7 +84,6 @@ async function callGemini(parts: ContentPart[], maxTokens = 1500): Promise<strin
     body: JSON.stringify({
       contents: [{ parts }],
       generationConfig: {
-        maxOutputTokens: maxTokens,
         temperature: 0.7,
         responseMimeType: 'application/json',
       },
@@ -189,10 +188,10 @@ categories 배열에는 다음 항목들을 순서대로 포함하세요: ${cate
 
     let parsed: AnalysisResult;
     try {
-      parsed = extractJson<AnalysisResult>(await callGemini(parts, 2500));
+      parsed = extractJson<AnalysisResult>(await callGemini(parts));
     } catch {
       // one retry
-      parsed = extractJson<AnalysisResult>(await callGemini(parts, 2500));
+      parsed = extractJson<AnalysisResult>(await callGemini(parts));
     }
 
     if (!parsed?.categories?.length) {
