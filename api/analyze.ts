@@ -83,7 +83,11 @@ async function callGemini(parts: ContentPart[], maxTokens = 1500): Promise<strin
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts }],
-      generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
+      generationConfig: {
+        maxOutputTokens: maxTokens,
+        temperature: 0.7,
+        responseMimeType: 'application/json',
+      },
     }),
   });
 
@@ -151,7 +155,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const categoriesText = rubric.categories.map((c) => `- ${c.label}: ${c.criteria}`).join('\n');
 
-    const prompt = `당신은 AIDA 기준에 정통한 프리다이빙 코치입니다. 아래 다이빙 영상에서 순서대로 추출한 프레임들을 보고 폼을 평가하세요.
+    const categoryNames = rubric.categories.map((c) => c.label);
+
+    const prompt = `당신은 AIDA 기준에 정통한 프리다이빙 코치입니다. 다이빙 영상에서 추출한 프레임들을 보고 폼을 평가하세요.
 
 종목: ${rubric.label}
 ${rubric.context}
@@ -160,17 +166,21 @@ ${modeLine}
 평가 항목:
 ${categoriesText}
 
-중요: 프레임에서 실제로 보이는 것만 근거로 삼으세요. 보이지 않거나 영상만으로 판단 불가한 것은 점수에 반영하지 말고 솔직히 언급하세요. 구체적이고 건설적인 코칭 톤으로, AIDA 강사가 말하듯 한국어로 작성하세요.
+중요:
+- 프레임에서 실제로 보이는 것만 근거로 삼으세요
+- 영상만으로 판단 불가한 것은 솔직히 언급하세요
+- AIDA 강사처럼 건설적인 코칭 톤으로 한국어로 작성하세요
 
-다른 말 없이 아래 JSON만 출력하세요(마크다운 코드펜스 금지):
+JSON 스키마:
 {
-  "overall": "2~3문장 총평",
+  "overall": "2~3문장 총평 (string)",
   "categories": [
-${rubric.categories.map((c) => `    {"name":"${c.label}","score":4,"note":"보이는 것 관찰 1~2문장","tip":"개선 팁 1문장"}`).join(',\n')}
+    {"name": "카테고리명", "score": 1-5 (0.5단위), "note": "관찰 내용", "tip": "개선 팁"}
   ],
-  "hook": "블로그/쇼츠 후킹용 한 줄 카피"
+  "hook": "블로그/쇼츠용 한 줄 카피 (string)"
 }
-score는 0.5 단위 1~5. 각 문장은 간결하게.`;
+
+categories 배열에는 다음 항목들을 순서대로 포함하세요: ${categoryNames.join(', ')}`;
 
     const parts: ContentPart[] = [
       ...frames.map((data) => ({ inline_data: { mime_type: 'image/jpeg', data } })),
@@ -179,10 +189,10 @@ score는 0.5 단위 1~5. 각 문장은 간결하게.`;
 
     let parsed: AnalysisResult;
     try {
-      parsed = extractJson<AnalysisResult>(await callGemini(parts, 1500));
+      parsed = extractJson<AnalysisResult>(await callGemini(parts, 2500));
     } catch {
       // one retry
-      parsed = extractJson<AnalysisResult>(await callGemini(parts, 1500));
+      parsed = extractJson<AnalysisResult>(await callGemini(parts, 2500));
     }
 
     if (!parsed?.categories?.length) {
