@@ -11,6 +11,30 @@ interface SimParams {
   ascentTimeSec: number;    // 상승 시작 → 수면까지 시간
 }
 
+// 사용자 정의 수심 알림
+interface DepthAlarm {
+  id: string;
+  depth: number;
+  label: string;
+  phase: 'descent' | 'ascent' | 'both';
+}
+
+const ALARM_STORAGE_KEY = 'descent-depth-alarms';
+
+function loadAlarms(): DepthAlarm[] {
+  try {
+    const stored = localStorage.getItem(ALARM_STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveAlarms(alarms: DepthAlarm[]): void {
+  try {
+    localStorage.setItem(ALARM_STORAGE_KEY, JSON.stringify(alarms));
+  } catch { /* ignore */ }
+}
+
 const DEFAULT_PARAMS: SimParams = {
   targetDepth: 40,
   freefallDepth: 25,
@@ -20,7 +44,7 @@ const DEFAULT_PARAMS: SimParams = {
   ascentTimeSec: 40,
 };
 
-function calculateMilestones(params: SimParams): DiveSimMilestone[] {
+function calculateMilestones(params: SimParams, alarms: DepthAlarm[]): DiveSimMilestone[] {
   const { targetDepth, freefallDepth, mouthfillDepth, descentTimeSec, bottomHoldSec, ascentTimeSec } = params;
 
   const milestones: DiveSimMilestone[] = [];
@@ -48,6 +72,33 @@ function calculateMilestones(params: SimParams): DiveSimMilestone[] {
   // 완료 (수면 복귀)
   const totalTime = ascentStartTime + ascentTimeSec;
   milestones.push({ depth: 0, timeSec: totalTime, label: '수면 복귀', event: 'complete' });
+
+  // 사용자 정의 수심 알림 추가
+  alarms.forEach((alarm) => {
+    if (alarm.depth <= 0 || alarm.depth >= targetDepth) return;
+
+    // 하강 시 알림
+    if (alarm.phase === 'descent' || alarm.phase === 'both') {
+      const descentTime = (alarm.depth / targetDepth) * descentTimeSec;
+      milestones.push({
+        depth: alarm.depth,
+        timeSec: descentTime,
+        label: `${alarm.label} (하강)`,
+        event: 'freefall', // 커스텀 이벤트로 처리
+      });
+    }
+
+    // 상승 시 알림
+    if (alarm.phase === 'ascent' || alarm.phase === 'both') {
+      const ascentTime = ascentStartTime + ((targetDepth - alarm.depth) / targetDepth) * ascentTimeSec;
+      milestones.push({
+        depth: alarm.depth,
+        timeSec: ascentTime,
+        label: `${alarm.label} (상승)`,
+        event: 'ascent',
+      });
+    }
+  });
 
   return milestones.sort((a, b) => a.timeSec - b.timeSec);
 }
@@ -88,11 +139,16 @@ function getCurrentDepth(elapsedSec: number, params: SimParams): number {
 
 export default function DiveSimulation() {
   const [params, setParams] = useState<SimParams>(DEFAULT_PARAMS);
-  const [milestones, setMilestones] = useState<DiveSimMilestone[]>(() => calculateMilestones(DEFAULT_PARAMS));
+  const [alarms, setAlarms] = useState<DepthAlarm[]>(loadAlarms);
+  const [milestones, setMilestones] = useState<DiveSimMilestone[]>(() => calculateMilestones(DEFAULT_PARAMS, loadAlarms()));
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [passedMilestones, setPassedMilestones] = useState<Set<number>>(new Set());
   const [speed, setSpeed] = useState(1);
+  const [showAlarmForm, setShowAlarmForm] = useState(false);
+  const [newAlarmDepth, setNewAlarmDepth] = useState('');
+  const [newAlarmLabel, setNewAlarmLabel] = useState('');
+  const [newAlarmPhase, setNewAlarmPhase] = useState<'descent' | 'ascent' | 'both'>('both');
 
   const intervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -101,10 +157,36 @@ export default function DiveSimulation() {
   const totalTime = milestones[milestones.length - 1]?.timeSec ?? 0;
   const currentDepth = getCurrentDepth(elapsedSec, params);
 
+  // 알림 변경 시 저장 및 마일스톤 재계산
+  useEffect(() => {
+    saveAlarms(alarms);
+    setMilestones(calculateMilestones(params, alarms));
+  }, [alarms, params]);
+
   const updateParams = (key: keyof SimParams, value: number) => {
     const newParams = { ...params, [key]: value };
     setParams(newParams);
-    setMilestones(calculateMilestones(newParams));
+    setMilestones(calculateMilestones(newParams, alarms));
+  };
+
+  const addAlarm = () => {
+    const depth = Number(newAlarmDepth);
+    if (!depth || depth <= 0 || depth >= params.targetDepth) return;
+    const label = newAlarmLabel.trim() || `${depth}m`;
+    const newAlarm: DepthAlarm = {
+      id: Date.now().toString(),
+      depth,
+      label,
+      phase: newAlarmPhase,
+    };
+    setAlarms((prev) => [...prev, newAlarm].sort((a, b) => a.depth - b.depth));
+    setNewAlarmDepth('');
+    setNewAlarmLabel('');
+    setShowAlarmForm(false);
+  };
+
+  const removeAlarm = (id: string) => {
+    setAlarms((prev) => prev.filter((a) => a.id !== id));
   };
 
   const tick = useCallback(() => {
@@ -204,6 +286,121 @@ export default function DiveSimulation() {
             </label>
           ))}
         </div>
+      </div>
+
+      {/* 수심 알림 설정 */}
+      <div className="rounded-2xl border border-[var(--line)] bg-card/40 p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-[15px] font-semibold">수심 알림</h3>
+          {!isRunning && (
+            <button
+              onClick={() => setShowAlarmForm(!showAlarmForm)}
+              className="flex h-7 items-center gap-1 rounded-lg bg-aqua/10 px-3 text-[12px] font-semibold text-aqua hover:bg-aqua/20"
+            >
+              <span className="text-[16px]">+</span> 추가
+            </button>
+          )}
+        </div>
+
+        {/* 알림 추가 폼 */}
+        {showAlarmForm && !isRunning && (
+          <div className="mb-4 rounded-xl bg-deep p-4">
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <label className="mono text-[11px] text-muted">
+                <span className="mb-1 block">수심 (m)</span>
+                <input
+                  type="number"
+                  step={1}
+                  min={1}
+                  max={params.targetDepth - 1}
+                  value={newAlarmDepth}
+                  onChange={(e) => setNewAlarmDepth(e.target.value)}
+                  placeholder="예: 15"
+                  className="w-full rounded bg-card px-2.5 py-2 text-[14px] text-ink"
+                />
+              </label>
+              <label className="mono text-[11px] text-muted">
+                <span className="mb-1 block">라벨 (선택)</span>
+                <input
+                  type="text"
+                  value={newAlarmLabel}
+                  onChange={(e) => setNewAlarmLabel(e.target.value)}
+                  placeholder="예: 이퀄"
+                  className="w-full rounded bg-card px-2.5 py-2 text-[14px] text-ink"
+                />
+              </label>
+            </div>
+            <div className="mb-3">
+              <span className="mono mb-2 block text-[11px] text-muted">알림 시점</span>
+              <div className="flex gap-2">
+                {[
+                  { value: 'descent', label: '하강' },
+                  { value: 'ascent', label: '상승' },
+                  { value: 'both', label: '하강+상승' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setNewAlarmPhase(opt.value as typeof newAlarmPhase)}
+                    className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                      newAlarmPhase === opt.value
+                        ? 'bg-aqua text-[#04222a]'
+                        : 'bg-card text-muted hover:text-ink'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={addAlarm}
+                disabled={!newAlarmDepth || Number(newAlarmDepth) <= 0}
+                className="flex-1 rounded-lg bg-aqua py-2 text-[13px] font-bold text-[#04222a] disabled:opacity-50"
+              >
+                추가
+              </button>
+              <button
+                onClick={() => setShowAlarmForm(false)}
+                className="rounded-lg bg-card px-4 py-2 text-[13px] text-muted hover:text-ink"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 알림 목록 */}
+        {alarms.length > 0 ? (
+          <div className="space-y-2">
+            {alarms.map((alarm) => (
+              <div
+                key={alarm.id}
+                className="flex items-center gap-3 rounded-lg bg-deep px-3 py-2 text-[13px]"
+              >
+                <span className="mono font-semibold text-aqua">{alarm.depth}m</span>
+                <span className="flex-1 text-ink">{alarm.label}</span>
+                <span className="mono text-[11px] text-muted">
+                  {alarm.phase === 'descent' ? '하강' : alarm.phase === 'ascent' ? '상승' : '하강+상승'}
+                </span>
+                {!isRunning && (
+                  <button
+                    onClick={() => removeAlarm(alarm.id)}
+                    className="text-muted hover:text-coral"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M5 5l10 10M15 5L5 15" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[13px] text-muted">
+            설정된 알림이 없습니다. 다이빙 컴퓨터처럼 원하는 수심에서 알림을 받으세요.
+          </p>
+        )}
       </div>
 
       {/* 시뮬레이션 비주얼 */}
