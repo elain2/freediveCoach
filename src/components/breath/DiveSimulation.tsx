@@ -4,47 +4,43 @@ import { playPhaseBeep, playCompleteBeep, playCountdownBeep } from '../../lib/au
 
 interface SimParams {
   targetDepth: number;
-  descentSpeed: number;
   freefallDepth: number;
-  freefallSpeed: number;
-  ascentSpeed: number;
   mouthfillDepth: number;
+  descentTimeSec: number;   // 수면 → 프리폴 시작까지 시간
+  freefallTimeSec: number;  // 프리폴 → 턴까지 시간
+  ascentTimeSec: number;    // 턴 → 수면까지 시간
 }
 
 const DEFAULT_PARAMS: SimParams = {
   targetDepth: 40,
-  descentSpeed: 1.0,
   freefallDepth: 25,
-  freefallSpeed: 1.3,
-  ascentSpeed: 1.0,
   mouthfillDepth: 30,
+  descentTimeSec: 25,
+  freefallTimeSec: 12,
+  ascentTimeSec: 40,
 };
 
 function calculateMilestones(params: SimParams): DiveSimMilestone[] {
-  const { targetDepth, descentSpeed, freefallDepth, freefallSpeed, ascentSpeed, mouthfillDepth } = params;
+  const { targetDepth, freefallDepth, mouthfillDepth, descentTimeSec, freefallTimeSec, ascentTimeSec } = params;
 
   const milestones: DiveSimMilestone[] = [];
 
   // 수면 출발
   milestones.push({ depth: 0, timeSec: 0, label: '수면 출발', event: 'surface' });
 
-  // 마우스필 (하강 중)
-  const mouthfillTime = mouthfillDepth / descentSpeed;
+  // 마우스필 (하강 중) - 비율로 시간 계산
+  const mouthfillTime = (mouthfillDepth / freefallDepth) * descentTimeSec;
   milestones.push({ depth: mouthfillDepth, timeSec: mouthfillTime, label: '마우스필', event: 'mouthfill' });
 
   // 프리폴 시작
-  const freefallTime = freefallDepth / descentSpeed;
-  milestones.push({ depth: freefallDepth, timeSec: freefallTime, label: '프리폴', event: 'freefall' });
+  milestones.push({ depth: freefallDepth, timeSec: descentTimeSec, label: '프리폴', event: 'freefall' });
 
   // 턴 (바닥)
-  const descentToFF = freefallDepth / descentSpeed;
-  const ffToBottom = (targetDepth - freefallDepth) / freefallSpeed;
-  const turnTime = descentToFF + ffToBottom;
+  const turnTime = descentTimeSec + freefallTimeSec;
   milestones.push({ depth: targetDepth, timeSec: turnTime, label: '턴', event: 'turn' });
 
   // 완료 (수면 복귀)
-  const ascentTime = targetDepth / ascentSpeed;
-  const totalTime = turnTime + ascentTime;
+  const totalTime = turnTime + ascentTimeSec;
   milestones.push({ depth: 0, timeSec: totalTime, label: '수면 복귀', event: 'complete' });
 
   return milestones.sort((a, b) => a.timeSec - b.timeSec);
@@ -57,23 +53,25 @@ function formatTime(sec: number): string {
 }
 
 function getCurrentDepth(elapsedSec: number, params: SimParams): number {
-  const { targetDepth, descentSpeed, freefallDepth, freefallSpeed, ascentSpeed } = params;
+  const { targetDepth, freefallDepth, descentTimeSec, freefallTimeSec, ascentTimeSec } = params;
 
-  const descentToFF = freefallDepth / descentSpeed;
-  const ffToBottom = (targetDepth - freefallDepth) / freefallSpeed;
-  const turnTime = descentToFF + ffToBottom;
-  const ascentTime = targetDepth / ascentSpeed;
-  const totalTime = turnTime + ascentTime;
+  const turnTime = descentTimeSec + freefallTimeSec;
+  const totalTime = turnTime + ascentTimeSec;
+
+  // 속도 계산 (내부 사용)
+  const descentSpeed = freefallDepth / descentTimeSec;
+  const freefallSpeed = (targetDepth - freefallDepth) / freefallTimeSec;
+  const ascentSpeed = targetDepth / ascentTimeSec;
 
   if (elapsedSec <= 0) return 0;
   if (elapsedSec >= totalTime) return 0;
 
   // 하강
   if (elapsedSec <= turnTime) {
-    if (elapsedSec <= descentToFF) {
+    if (elapsedSec <= descentTimeSec) {
       return elapsedSec * descentSpeed;
     } else {
-      return freefallDepth + (elapsedSec - descentToFF) * freefallSpeed;
+      return freefallDepth + (elapsedSec - descentTimeSec) * freefallSpeed;
     }
   }
 
@@ -88,9 +86,11 @@ export default function DiveSimulation() {
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [passedMilestones, setPassedMilestones] = useState<Set<number>>(new Set());
+  const [speed, setSpeed] = useState(1);
 
   const intervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
+  const elapsedAtSpeedChangeRef = useRef<number>(0);
 
   const totalTime = milestones[milestones.length - 1]?.timeSec ?? 0;
   const currentDepth = getCurrentDepth(elapsedSec, params);
@@ -103,7 +103,8 @@ export default function DiveSimulation() {
 
   const tick = useCallback(() => {
     const now = performance.now();
-    const elapsed = (now - startTimeRef.current) / 1000;
+    const realElapsed = (now - startTimeRef.current) / 1000;
+    const elapsed = elapsedAtSpeedChangeRef.current + realElapsed * speed;
     setElapsedSec(elapsed);
 
     // 마일스톤 체크
@@ -123,7 +124,7 @@ export default function DiveSimulation() {
     if (elapsed >= totalTime) {
       setIsRunning(false);
     }
-  }, [milestones, passedMilestones, totalTime]);
+  }, [milestones, passedMilestones, totalTime, speed]);
 
   useEffect(() => {
     if (isRunning) {
@@ -140,6 +141,7 @@ export default function DiveSimulation() {
   const start = () => {
     setElapsedSec(0);
     setPassedMilestones(new Set());
+    elapsedAtSpeedChangeRef.current = 0;
     startTimeRef.current = performance.now();
     setIsRunning(true);
     playCountdownBeep();
@@ -149,6 +151,16 @@ export default function DiveSimulation() {
     setIsRunning(false);
     setElapsedSec(0);
     setPassedMilestones(new Set());
+    setSpeed(1);
+    elapsedAtSpeedChangeRef.current = 0;
+  };
+
+  const cycleSpeed = () => {
+    const speeds = [1, 2, 4, 8];
+    const nextIdx = (speeds.indexOf(speed) + 1) % speeds.length;
+    elapsedAtSpeedChangeRef.current = elapsedSec;
+    startTimeRef.current = performance.now();
+    setSpeed(speeds[nextIdx]);
   };
 
   // 탱크 비주얼의 다이버 위치 (0~100%)
@@ -157,7 +169,7 @@ export default function DiveSimulation() {
   return (
     <div>
       <p className="mb-6 max-w-[48ch] text-[15px] text-muted">
-        목표 수심과 속도를 설정하고 다이브 타이밍을 시뮬레이션합니다. 마일스톤마다 사운드로 알려줍니다.
+        목표 수심과 구간별 시간을 설정하고 다이브 타이밍을 시뮬레이션합니다. 마일스톤마다 사운드로 알려줍니다.
       </p>
 
       <div className="space-y-4">
@@ -167,17 +179,17 @@ export default function DiveSimulation() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
             { key: 'targetDepth', label: '목표 수심 (m)' },
-            { key: 'descentSpeed', label: '하강 속도 (m/s)', step: 0.1 },
             { key: 'freefallDepth', label: '프리폴 시작 (m)' },
-            { key: 'freefallSpeed', label: '프리폴 속도 (m/s)', step: 0.1 },
-            { key: 'ascentSpeed', label: '상승 속도 (m/s)', step: 0.1 },
             { key: 'mouthfillDepth', label: '마우스필 (m)' },
+            { key: 'descentTimeSec', label: '하강 시간 (초)' },
+            { key: 'freefallTimeSec', label: '프리폴 시간 (초)' },
+            { key: 'ascentTimeSec', label: '상승 시간 (초)' },
           ].map((f) => (
             <label key={f.key} className="mono text-[11px] text-muted">
               <span className="mb-1 block">{f.label}</span>
               <input
                 type="number"
-                step={f.step ?? 1}
+                step={1}
                 value={params[f.key as keyof SimParams]}
                 onChange={(e) => updateParams(f.key as keyof SimParams, Number(e.target.value))}
                 disabled={isRunning}
@@ -216,7 +228,17 @@ export default function DiveSimulation() {
           <div className="flex-1">
             <div className="mb-3 flex items-baseline justify-between">
               <span className="mono text-[32px] font-bold">{formatTime(elapsedSec)}</span>
-              <span className="mono text-[14px] text-muted">/ {formatTime(totalTime)}</span>
+              <div className="flex items-center gap-2">
+                {isRunning && (
+                  <button
+                    onClick={cycleSpeed}
+                    className="mono rounded-lg bg-deep px-2.5 py-1 text-[12px] font-semibold text-aqua hover:bg-aqua/20"
+                  >
+                    {speed}x
+                  </button>
+                )}
+                <span className="mono text-[14px] text-muted">/ {formatTime(totalTime)}</span>
+              </div>
             </div>
             <div className="mb-1 text-[14px]">
               현재 수심: <span className="mono font-semibold text-aqua">{currentDepth.toFixed(1)}m</span>
