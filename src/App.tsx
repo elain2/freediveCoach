@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AnalyzeView from './components/AnalyzeView';
 import DiveSimulation from './components/breath/DiveSimulation';
 import BreathView from './components/BreathView';
 import HistoryView from './components/HistoryView';
 import AdBanner from './components/AdBanner';
+import AudioSettingsPanel from './components/AudioSettingsPanel';
+import { useAudioSettings } from './lib/useAudioSettings';
+import { updateAudioSettings } from './lib/audio';
 
 const ADFIT_UNIT_ID = 'DAN-FSn400opi3lj0gM9';
 
@@ -59,9 +62,34 @@ function Bubbles() {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('analyze');
+  const [showAudioSettings, setShowAudioSettings] = useState(false);
+  const {
+    settings: audioSettings,
+    toggleMute,
+    setVolume,
+    toggleCountdown,
+    togglePhase,
+    toggleComplete,
+  } = useAudioSettings();
+
+  // 오디오 설정 동기화
+  useEffect(() => {
+    updateAudioSettings(audioSettings);
+  }, [audioSettings]);
 
   return (
     <>
+      {showAudioSettings && (
+        <AudioSettingsPanel
+          settings={audioSettings}
+          onToggleMute={toggleMute}
+          onVolumeChange={setVolume}
+          onToggleCountdown={toggleCountdown}
+          onTogglePhase={togglePhase}
+          onToggleComplete={toggleComplete}
+          onClose={() => setShowAudioSettings(false)}
+        />
+      )}
       <Bubbles />
       <div className="relative z-10 mx-auto max-w-[760px] px-5 pb-20">
         <header className="pt-10 pb-7">
@@ -80,7 +108,7 @@ export default function App() {
           </p>
         </header>
 
-        <nav className="mb-8 flex gap-1 border-b border-[var(--line)]">
+        <nav className="mb-8 flex items-center gap-1 border-b border-[var(--line)]">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -93,6 +121,25 @@ export default function App() {
               {tab === t.id && <span className="absolute inset-x-3 -bottom-px h-0.5 rounded bg-aqua" />}
             </button>
           ))}
+          <div className="flex-1" />
+          <button
+            onClick={() => setShowAudioSettings(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-deep hover:text-ink"
+            aria-label="알림 설정"
+          >
+            {audioSettings.muted ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
+          </button>
         </nav>
 
         {/* 상단 광고 - 항상 보이는 위치 */}

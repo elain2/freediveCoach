@@ -95,6 +95,26 @@ export interface DiveSimMilestone {
   event: 'surface' | 'mouthfill' | 'freefall' | 'turn' | 'ascent' | 'complete';
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 오디오 설정
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AudioSettings {
+  muted: boolean;           // 전체 음소거
+  volume: number;           // 볼륨 (0~1)
+  countdownEnabled: boolean; // 카운트다운 비프 (3, 2, 1...)
+  phaseEnabled: boolean;    // 페이즈 전환 비프
+  completeEnabled: boolean; // 완료 비프
+}
+
+export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
+  muted: false,
+  volume: 0.8,
+  countdownEnabled: true,
+  phaseEnabled: true,
+  completeEnabled: true,
+};
+
 export const DISCIPLINES: { id: DisciplineId; label: string; ready: boolean }[] = [
   { id: 'CWT', label: '콘스턴트 웨이트 (CWT)', ready: true },
   { id: 'CNF', label: '콘스턴트 노핀 (CNF)', ready: true },
