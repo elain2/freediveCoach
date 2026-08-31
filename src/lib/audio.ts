@@ -15,7 +15,7 @@ export function playBeep(freq = 880, durationMs = 120): void {
 
     osc.type = 'sine';
     osc.frequency.value = freq;
-    gain.gain.value = 0.3;
+    gain.gain.value = 1.2;
 
     osc.connect(gain);
     gain.connect(ctx.destination);
