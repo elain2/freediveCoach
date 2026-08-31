@@ -34,6 +34,9 @@ interface SimMilestone extends DiveSimMilestone {
 }
 
 const ALARM_STORAGE_KEY = 'descent-depth-alarms';
+const COUNTDOWN_STORAGE_KEY = 'descent-countdown-sec';
+
+const COUNTDOWN_OPTIONS = [0, 3, 5, 10];
 
 function loadAlarms(): DepthAlarm[] {
   try {
@@ -46,6 +49,20 @@ function loadAlarms(): DepthAlarm[] {
 function saveAlarms(alarms: DepthAlarm[]): void {
   try {
     localStorage.setItem(ALARM_STORAGE_KEY, JSON.stringify(alarms));
+  } catch { /* ignore */ }
+}
+
+function loadCountdown(): number {
+  try {
+    const stored = localStorage.getItem(COUNTDOWN_STORAGE_KEY);
+    if (stored) return Number(stored);
+  } catch { /* ignore */ }
+  return 3; // 기본값 3초
+}
+
+function saveCountdown(sec: number): void {
+  try {
+    localStorage.setItem(COUNTDOWN_STORAGE_KEY, String(sec));
   } catch { /* ignore */ }
 }
 
@@ -167,7 +184,13 @@ export default function DiveSimulation() {
   const [newAlarmPhase, setNewAlarmPhase] = useState<'descent' | 'ascent' | 'both'>('both');
   const [newAlarmSound, setNewAlarmSound] = useState<AlarmSoundType>('single');
 
+  // 카운트다운 관련 상태
+  const [countdownSec, setCountdownSec] = useState(loadCountdown);
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const [countdownRemaining, setCountdownRemaining] = useState(0);
+
   const intervalRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const elapsedAtSpeedChangeRef = useRef<number>(0);
 
@@ -179,6 +202,11 @@ export default function DiveSimulation() {
     saveAlarms(alarms);
     setMilestones(calculateMilestones(params, alarms));
   }, [alarms, params]);
+
+  // 카운트다운 설정 저장
+  useEffect(() => {
+    saveCountdown(countdownSec);
+  }, [countdownSec]);
 
   const updateParams = (key: keyof SimParams, value: number) => {
     const newParams = { ...params, [key]: value };
@@ -248,16 +276,55 @@ export default function DiveSimulation() {
     };
   }, [isRunning, tick]);
 
-  const start = () => {
+  const startSimulation = useCallback(() => {
     setElapsedSec(0);
     setPassedMilestones(new Set());
     elapsedAtSpeedChangeRef.current = 0;
     startTimeRef.current = performance.now();
     setIsRunning(true);
-    playCountdownBeep();
+    playPhaseBeep(); // 시작 신호
+  }, []);
+
+  const start = () => {
+    if (countdownSec > 0) {
+      // 카운트다운 시작
+      setCountdownRemaining(countdownSec);
+      setIsCountingDown(true);
+      playCountdownBeep();
+
+      countdownIntervalRef.current = window.setInterval(() => {
+        setCountdownRemaining((prev) => {
+          const next = prev - 1;
+          if (next > 0) {
+            playCountdownBeep();
+            return next;
+          } else {
+            // 카운트다운 완료, 시뮬레이션 시작
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+              countdownIntervalRef.current = null;
+            }
+            setIsCountingDown(false);
+            startSimulation();
+            return 0;
+          }
+        });
+      }, 1000);
+    } else {
+      // 카운트다운 없이 바로 시작
+      startSimulation();
+    }
   };
 
   const reset = () => {
+    // 카운트다운 중지
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setIsCountingDown(false);
+    setCountdownRemaining(0);
+
     setIsRunning(false);
     setElapsedSec(0);
     setPassedMilestones(new Set());
@@ -537,9 +604,39 @@ export default function DiveSimulation() {
         </div>
       </div>
 
+        {/* 카운트다운 설정 */}
+        {!isRunning && !isCountingDown && (
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] text-muted">시작 카운트다운:</span>
+            <div className="flex gap-1">
+              {COUNTDOWN_OPTIONS.map((sec) => (
+                <button
+                  key={sec}
+                  onClick={() => setCountdownSec(sec)}
+                  className={`mono rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                    countdownSec === sec
+                      ? 'bg-aqua text-[#04222a]'
+                      : 'bg-deep text-muted hover:text-ink'
+                  }`}
+                >
+                  {sec === 0 ? '없음' : `${sec}초`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 카운트다운 표시 */}
+        {isCountingDown && (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-aqua/30 bg-aqua/5 py-8">
+            <span className="mono text-[64px] font-bold text-aqua">{countdownRemaining}</span>
+            <span className="text-[14px] text-muted">준비하세요...</span>
+          </div>
+        )}
+
         {/* 컨트롤 */}
         <div className="flex gap-3">
-          {isRunning ? (
+          {isRunning || isCountingDown ? (
             <button
               onClick={reset}
               className="flex-1 rounded-xl border border-coral bg-coral/10 py-3.5 text-[14px] font-bold text-coral transition-transform hover:-translate-y-px"
