@@ -3,7 +3,11 @@ import { DISCIPLINES, type AnalysisMode, type AnalysisResult, type DisciplineId,
 import { extractFrames } from '../lib/frames';
 import { analyzeFrames } from '../lib/api';
 import { saveSession } from '../lib/storage';
+import { canAnalyze, getUsage, incrementUsage } from '../lib/usageLimit';
+import { hasConsented } from '../lib/consent';
 import ResultCard from './ResultCard';
+import PaywallModal from './PaywallModal';
+import ConsentModal from './ConsentModal';
 
 export default function AnalyzeView() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,7 +21,12 @@ export default function AnalyzeView() {
   const [busyMsg, setBusyMsg] = useState('');
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState('');
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
+  const [usageKey, setUsageKey] = useState(0); // 리렌더 트리거
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const usage = getUsage();
 
   const onPick = (f: File | undefined) => {
     if (!f) return;
@@ -40,6 +49,19 @@ export default function AnalyzeView() {
 
   const run = async () => {
     if (!file) return;
+
+    // 제3자 정보 제공 동의 체크
+    if (!hasConsented()) {
+      setShowConsent(true);
+      return;
+    }
+
+    // 무료 횟수 체크
+    if (!canAnalyze()) {
+      setShowPaywall(true);
+      return;
+    }
+
     setBusy(true);
     setError('');
     setResult(null);
@@ -53,6 +75,10 @@ export default function AnalyzeView() {
       setBusyMsg('🐱 폼 읽는 중 — 코치가 영상을 보고 있어요…');
       const res = await analyzeFrames({ discipline, mode, segment, frames: ex.frames });
       setResult(res);
+
+      // 분석 성공 후 사용량 증가
+      incrementUsage();
+      setUsageKey((k) => k + 1);
 
       const session: Session = {
         id: crypto.randomUUID(),
@@ -170,6 +196,15 @@ export default function AnalyzeView() {
           >
             폼 분석 시작
           </button>
+
+          {/* 사용량 표시 */}
+          <div key={usageKey} className="mt-3 text-center text-[12px] text-muted">
+            {usage.unlocked ? (
+              <span className="text-aqua">오늘 무제한 분석 가능</span>
+            ) : (
+              <span>오늘 {usage.remaining}회 무료 남음</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -199,6 +234,26 @@ export default function AnalyzeView() {
         불가한 부분은 빠집니다. 측면·일관된 각도로 찍을수록 정확해지고, 실제 수중 코칭과 안전 판단을
         대체하지 않습니다.
       </p>
+
+      {showPaywall && (
+        <PaywallModal
+          onClose={() => setShowPaywall(false)}
+          onUnlock={() => {
+            setShowPaywall(false);
+            setUsageKey((k) => k + 1);
+          }}
+        />
+      )}
+
+      {showConsent && (
+        <ConsentModal
+          onClose={() => setShowConsent(false)}
+          onAgree={() => {
+            setShowConsent(false);
+            run();
+          }}
+        />
+      )}
     </div>
   );
 }
