@@ -92,7 +92,7 @@ export interface DiveSimMilestone {
   depth: number;
   timeSec: number;
   label: string;
-  event: 'surface' | 'mouthfill' | 'freefall' | 'turn' | 'complete';
+  event: 'surface' | 'mouthfill' | 'freefall' | 'turn' | 'ascent' | 'complete';
 }
 
 export const DISCIPLINES: { id: DisciplineId; label: string; ready: boolean }[] = [
