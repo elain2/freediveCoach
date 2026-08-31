@@ -6,8 +6,7 @@ interface SimParams {
   targetDepth: number;
   freefallDepth: number;
   mouthfillDepth: number;
-  descentTimeSec: number;   // 수면 → 프리폴 시작까지 시간
-  freefallTimeSec: number;  // 프리폴 → 턴까지 시간
+  descentTimeSec: number;   // 수면 → 턴까지 전체 하강 시간
   bottomHoldSec: number;    // 바텀 홀딩 시간
   ascentTimeSec: number;    // 상승 시작 → 수면까지 시간
 }
@@ -16,14 +15,13 @@ const DEFAULT_PARAMS: SimParams = {
   targetDepth: 40,
   freefallDepth: 25,
   mouthfillDepth: 30,
-  descentTimeSec: 25,
-  freefallTimeSec: 12,
+  descentTimeSec: 37,
   bottomHoldSec: 0,
   ascentTimeSec: 40,
 };
 
 function calculateMilestones(params: SimParams): DiveSimMilestone[] {
-  const { targetDepth, freefallDepth, mouthfillDepth, descentTimeSec, freefallTimeSec, bottomHoldSec, ascentTimeSec } = params;
+  const { targetDepth, freefallDepth, mouthfillDepth, descentTimeSec, bottomHoldSec, ascentTimeSec } = params;
 
   const milestones: DiveSimMilestone[] = [];
 
@@ -31,18 +29,18 @@ function calculateMilestones(params: SimParams): DiveSimMilestone[] {
   milestones.push({ depth: 0, timeSec: 0, label: '수면 출발', event: 'surface' });
 
   // 마우스필 (하강 중) - 비율로 시간 계산
-  const mouthfillTime = (mouthfillDepth / freefallDepth) * descentTimeSec;
+  const mouthfillTime = (mouthfillDepth / targetDepth) * descentTimeSec;
   milestones.push({ depth: mouthfillDepth, timeSec: mouthfillTime, label: '마우스필', event: 'mouthfill' });
 
-  // 프리폴 시작
-  milestones.push({ depth: freefallDepth, timeSec: descentTimeSec, label: '프리폴', event: 'freefall' });
+  // 프리폴 시작 - 비율로 시간 계산
+  const freefallTime = (freefallDepth / targetDepth) * descentTimeSec;
+  milestones.push({ depth: freefallDepth, timeSec: freefallTime, label: '프리폴', event: 'freefall' });
 
   // 턴 (바닥 도착)
-  const turnTime = descentTimeSec + freefallTimeSec;
-  milestones.push({ depth: targetDepth, timeSec: turnTime, label: '턴', event: 'turn' });
+  milestones.push({ depth: targetDepth, timeSec: descentTimeSec, label: '턴', event: 'turn' });
 
   // 상승 시작 (바텀 홀딩 후)
-  const ascentStartTime = turnTime + bottomHoldSec;
+  const ascentStartTime = descentTimeSec + bottomHoldSec;
   if (bottomHoldSec > 0) {
     milestones.push({ depth: targetDepth, timeSec: ascentStartTime, label: '상승 시작', event: 'ascent' });
   }
@@ -61,27 +59,21 @@ function formatTime(sec: number): string {
 }
 
 function getCurrentDepth(elapsedSec: number, params: SimParams): number {
-  const { targetDepth, freefallDepth, descentTimeSec, freefallTimeSec, bottomHoldSec, ascentTimeSec } = params;
+  const { targetDepth, descentTimeSec, bottomHoldSec, ascentTimeSec } = params;
 
-  const turnTime = descentTimeSec + freefallTimeSec;
-  const ascentStartTime = turnTime + bottomHoldSec;
+  const ascentStartTime = descentTimeSec + bottomHoldSec;
   const totalTime = ascentStartTime + ascentTimeSec;
 
   // 속도 계산 (내부 사용)
-  const descentSpeed = freefallDepth / descentTimeSec;
-  const freefallSpeed = (targetDepth - freefallDepth) / freefallTimeSec;
+  const descentSpeed = targetDepth / descentTimeSec;
   const ascentSpeed = targetDepth / ascentTimeSec;
 
   if (elapsedSec <= 0) return 0;
   if (elapsedSec >= totalTime) return 0;
 
   // 하강
-  if (elapsedSec <= turnTime) {
-    if (elapsedSec <= descentTimeSec) {
-      return elapsedSec * descentSpeed;
-    } else {
-      return freefallDepth + (elapsedSec - descentTimeSec) * freefallSpeed;
-    }
+  if (elapsedSec <= descentTimeSec) {
+    return elapsedSec * descentSpeed;
   }
 
   // 바텀 홀딩
@@ -196,7 +188,6 @@ export default function DiveSimulation() {
             { key: 'freefallDepth', label: '프리폴 시작 (m)' },
             { key: 'mouthfillDepth', label: '마우스필 (m)' },
             { key: 'descentTimeSec', label: '하강 시간 (초)' },
-            { key: 'freefallTimeSec', label: '프리폴 시간 (초)' },
             { key: 'bottomHoldSec', label: '바텀 홀딩 (초)' },
             { key: 'ascentTimeSec', label: '상승 시간 (초)' },
           ].map((f) => (
