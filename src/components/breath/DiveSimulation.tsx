@@ -35,6 +35,7 @@ interface SimMilestone extends DiveSimMilestone {
 
 const ALARM_STORAGE_KEY = 'descent-depth-alarms';
 const COUNTDOWN_STORAGE_KEY = 'descent-countdown-sec';
+const DEFAULT_ALARM_STORAGE_KEY = 'descent-default-alarm-enabled';
 
 const COUNTDOWN_OPTIONS = [0, 3, 5, 10];
 
@@ -63,6 +64,20 @@ function loadCountdown(): number {
 function saveCountdown(sec: number): void {
   try {
     localStorage.setItem(COUNTDOWN_STORAGE_KEY, String(sec));
+  } catch { /* ignore */ }
+}
+
+function loadDefaultAlarmEnabled(): boolean {
+  try {
+    const stored = localStorage.getItem(DEFAULT_ALARM_STORAGE_KEY);
+    if (stored !== null) return stored === 'true';
+  } catch { /* ignore */ }
+  return true; // 기본값 켜짐
+}
+
+function saveDefaultAlarmEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(DEFAULT_ALARM_STORAGE_KEY, String(enabled));
   } catch { /* ignore */ }
 }
 
@@ -189,6 +204,9 @@ export default function DiveSimulation() {
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdownRemaining, setCountdownRemaining] = useState(0);
 
+  // 기본 알림 on/off
+  const [defaultAlarmEnabled, setDefaultAlarmEnabled] = useState(loadDefaultAlarmEnabled);
+
   const intervalRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -202,6 +220,11 @@ export default function DiveSimulation() {
     saveAlarms(alarms);
     setMilestones(calculateMilestones(params, alarms));
   }, [alarms, params]);
+
+  // 기본 알림 설정 저장
+  useEffect(() => {
+    saveDefaultAlarmEnabled(defaultAlarmEnabled);
+  }, [defaultAlarmEnabled]);
 
   // 카운트다운 설정 저장
   useEffect(() => {
@@ -247,12 +270,14 @@ export default function DiveSimulation() {
       if (!passedMilestones.has(idx) && elapsed >= m.timeSec) {
         setPassedMilestones((prev) => new Set(prev).add(idx));
         if (m.event === 'complete') {
+          // 완료 알림은 항상 재생
           playCompleteBeep();
           setIsRunning(false);
         } else if (m.alarmSound) {
           // 사용자 정의 알림은 선택한 소리 재생
           playAlarmSound(m.alarmSound);
-        } else {
+        } else if (defaultAlarmEnabled) {
+          // 기본 알림은 설정에 따라 재생
           playPhaseBeep();
         }
       }
@@ -262,7 +287,7 @@ export default function DiveSimulation() {
     if (elapsed >= totalTime) {
       setIsRunning(false);
     }
-  }, [milestones, passedMilestones, totalTime, speed]);
+  }, [milestones, passedMilestones, totalTime, speed, defaultAlarmEnabled]);
 
   useEffect(() => {
     if (isRunning) {
@@ -389,6 +414,23 @@ export default function DiveSimulation() {
               <span className="text-[16px]">+</span> 추가
             </button>
           )}
+        </div>
+
+        {/* 기본 알림 토글 */}
+        <div className="mb-4 flex items-center justify-between rounded-lg bg-deep px-3 py-2">
+          <span className="text-[13px] text-muted">기본 알림 (마우스필, 프리폴, 턴 등)</span>
+          <button
+            onClick={() => setDefaultAlarmEnabled(!defaultAlarmEnabled)}
+            className={`relative h-6 w-11 rounded-full transition-colors ${
+              defaultAlarmEnabled ? 'bg-aqua' : 'bg-[var(--line)]'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                defaultAlarmEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
         </div>
 
         {/* 알림 추가 폼 */}
