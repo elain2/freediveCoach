@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DiveSimMilestone } from '../../lib/types';
-import { playPhaseBeep, playCompleteBeep, playCountdownBeep } from '../../lib/audio';
+import {
+  playPhaseBeep,
+  playCompleteBeep,
+  playCountdownBeep,
+  playAlarmSound,
+  previewAlarmSound,
+  ALARM_SOUNDS,
+  type AlarmSoundType,
+} from '../../lib/audio';
 
 interface SimParams {
   targetDepth: number;
@@ -17,6 +25,12 @@ interface DepthAlarm {
   depth: number;
   label: string;
   phase: 'descent' | 'ascent' | 'both';
+  sound: AlarmSoundType;
+}
+
+// 마일스톤에 사운드 정보 추가
+interface SimMilestone extends DiveSimMilestone {
+  alarmSound?: AlarmSoundType;
 }
 
 const ALARM_STORAGE_KEY = 'descent-depth-alarms';
@@ -44,10 +58,10 @@ const DEFAULT_PARAMS: SimParams = {
   ascentTimeSec: 40,
 };
 
-function calculateMilestones(params: SimParams, alarms: DepthAlarm[]): DiveSimMilestone[] {
+function calculateMilestones(params: SimParams, alarms: DepthAlarm[]): SimMilestone[] {
   const { targetDepth, freefallDepth, mouthfillDepth, descentTimeSec, bottomHoldSec, ascentTimeSec } = params;
 
-  const milestones: DiveSimMilestone[] = [];
+  const milestones: SimMilestone[] = [];
 
   // 수면 출발
   milestones.push({ depth: 0, timeSec: 0, label: '수면 출발', event: 'surface' });
@@ -84,7 +98,8 @@ function calculateMilestones(params: SimParams, alarms: DepthAlarm[]): DiveSimMi
         depth: alarm.depth,
         timeSec: descentTime,
         label: `${alarm.label} (하강)`,
-        event: 'freefall', // 커스텀 이벤트로 처리
+        event: 'freefall',
+        alarmSound: alarm.sound,
       });
     }
 
@@ -96,6 +111,7 @@ function calculateMilestones(params: SimParams, alarms: DepthAlarm[]): DiveSimMi
         timeSec: ascentTime,
         label: `${alarm.label} (상승)`,
         event: 'ascent',
+        alarmSound: alarm.sound,
       });
     }
   });
@@ -140,7 +156,7 @@ function getCurrentDepth(elapsedSec: number, params: SimParams): number {
 export default function DiveSimulation() {
   const [params, setParams] = useState<SimParams>(DEFAULT_PARAMS);
   const [alarms, setAlarms] = useState<DepthAlarm[]>(loadAlarms);
-  const [milestones, setMilestones] = useState<DiveSimMilestone[]>(() => calculateMilestones(DEFAULT_PARAMS, loadAlarms()));
+  const [milestones, setMilestones] = useState<SimMilestone[]>(() => calculateMilestones(DEFAULT_PARAMS, loadAlarms()));
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [passedMilestones, setPassedMilestones] = useState<Set<number>>(new Set());
@@ -149,6 +165,7 @@ export default function DiveSimulation() {
   const [newAlarmDepth, setNewAlarmDepth] = useState('');
   const [newAlarmLabel, setNewAlarmLabel] = useState('');
   const [newAlarmPhase, setNewAlarmPhase] = useState<'descent' | 'ascent' | 'both'>('both');
+  const [newAlarmSound, setNewAlarmSound] = useState<AlarmSoundType>('single');
 
   const intervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -178,10 +195,12 @@ export default function DiveSimulation() {
       depth,
       label,
       phase: newAlarmPhase,
+      sound: newAlarmSound,
     };
     setAlarms((prev) => [...prev, newAlarm].sort((a, b) => a.depth - b.depth));
     setNewAlarmDepth('');
     setNewAlarmLabel('');
+    setNewAlarmSound('single');
     setShowAlarmForm(false);
   };
 
@@ -202,6 +221,9 @@ export default function DiveSimulation() {
         if (m.event === 'complete') {
           playCompleteBeep();
           setIsRunning(false);
+        } else if (m.alarmSound) {
+          // 사용자 정의 알림은 선택한 소리 재생
+          playAlarmSound(m.alarmSound);
         } else {
           playPhaseBeep();
         }
@@ -352,6 +374,27 @@ export default function DiveSimulation() {
                 ))}
               </div>
             </div>
+            <div className="mb-3">
+              <span className="mono mb-2 block text-[11px] text-muted">알림 소리</span>
+              <div className="flex flex-wrap gap-2">
+                {ALARM_SOUNDS.map((s) => (
+                  <button
+                    key={s.type}
+                    onClick={() => {
+                      setNewAlarmSound(s.type);
+                      previewAlarmSound(s.type);
+                    }}
+                    className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                      newAlarmSound === s.type
+                        ? 'bg-coral text-white'
+                        : 'bg-card text-muted hover:text-ink'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={addAlarm}
@@ -373,28 +416,37 @@ export default function DiveSimulation() {
         {/* 알림 목록 */}
         {alarms.length > 0 ? (
           <div className="space-y-2">
-            {alarms.map((alarm) => (
-              <div
-                key={alarm.id}
-                className="flex items-center gap-3 rounded-lg bg-deep px-3 py-2 text-[13px]"
-              >
-                <span className="mono font-semibold text-aqua">{alarm.depth}m</span>
-                <span className="flex-1 text-ink">{alarm.label}</span>
-                <span className="mono text-[11px] text-muted">
-                  {alarm.phase === 'descent' ? '하강' : alarm.phase === 'ascent' ? '상승' : '하강+상승'}
-                </span>
-                {!isRunning && (
+            {alarms.map((alarm) => {
+              const soundLabel = ALARM_SOUNDS.find((s) => s.type === alarm.sound)?.label ?? '단일';
+              return (
+                <div
+                  key={alarm.id}
+                  className="flex items-center gap-3 rounded-lg bg-deep px-3 py-2 text-[13px]"
+                >
+                  <span className="mono font-semibold text-aqua">{alarm.depth}m</span>
+                  <span className="flex-1 text-ink">{alarm.label}</span>
                   <button
-                    onClick={() => removeAlarm(alarm.id)}
-                    className="text-muted hover:text-coral"
+                    onClick={() => previewAlarmSound(alarm.sound)}
+                    className="rounded bg-card px-2 py-0.5 text-[11px] text-coral hover:bg-coral/10"
                   >
-                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M5 5l10 10M15 5L5 15" />
-                    </svg>
+                    {soundLabel}
                   </button>
-                )}
-              </div>
-            ))}
+                  <span className="mono text-[11px] text-muted">
+                    {alarm.phase === 'descent' ? '하강' : alarm.phase === 'ascent' ? '상승' : '하강+상승'}
+                  </span>
+                  {!isRunning && (
+                    <button
+                      onClick={() => removeAlarm(alarm.id)}
+                      className="text-muted hover:text-coral"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M5 5l10 10M15 5L5 15" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="text-[13px] text-muted">
